@@ -15,12 +15,11 @@ uploaded_file = st.file_uploader("Upload Media (MP4, MOV, JPG, PNG)", type=["mp4
 
 if uploaded_file is not None:
     if uploaded_file.type.startswith('image'):
-st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
+        st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
     elif uploaded_file.type.startswith('video'):
         st.video(uploaded_file)
 
     if st.button("Generate Prompt", type="primary"):
-        with st.spinner("Analyzing media... (Videos may take a minute)"):
             try:
                 files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
                 response = requests.post(API_URL, files=files)
