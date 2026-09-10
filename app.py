@@ -20,31 +20,31 @@ if uploaded_file is not None:
         st.video(uploaded_file)
 
     if st.button("Generate Prompt", type="primary"):
-            try:
-                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-                response = requests.post(API_URL, files=files)
+        try:
+            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+            response = requests.post(API_URL, files=files)
+            
+            if response.status_code == 200:
+                response_json = response.json()
+                data = json.loads(response_json["data"])
                 
-                if response.status_code == 200:
-                    response_json = response.json()
-                    data = json.loads(response_json["data"])
-                    
-                    st.success("Analysis Complete!")
-                    st.subheader("✨ Optimized Generation Prompt")
-                    st.info(data["final_prompt"])
-                    
-                    st.subheader("🔍 Detailed Breakdown")
-                    st.write(f"**Medium:** {data['medium_type']}")
-                    st.write(f"**Subject:** {data['core_subject']}")
-                    st.write(f"**Environment:** {data['environment']}")
-                    st.write(f"**Camera & Motion:** {data['camera_and_motion']}")
-                    st.write(f"**Style:** {data['stylistic_modifiers']}")
-                    
-                    # Store the prompt in session state so we can generate an image from it
-                    st.session_state['generated_prompt'] = data["final_prompt"]
-                else:
-                    st.error(f"API Error: {response.status_code}")
-            except Exception as e:
-                st.error(f"Connection failed: {e}")
+                st.success("Analysis Complete!")
+                st.subheader("✨ Optimized Generation Prompt")
+                st.info(data["final_prompt"])
+                
+                st.subheader("🔍 Detailed Breakdown")
+                st.write(f"**Medium:** {data['medium_type']}")
+                st.write(f"**Subject:** {data['core_subject']}")
+                st.write(f"**Environment:** {data['environment']}")
+                st.write(f"**Camera & Motion:** {data['camera_and_motion']}")
+                st.write(f"**Style:** {data['stylistic_modifiers']}")
+                
+                # Store the prompt in session state so we can generate an image from it
+                st.session_state['generated_prompt'] = data["final_prompt"]
+            else:
+                st.error(f"API Error: {response.status_code}")
+        except Exception as e:
+            st.error(f"Connection failed: {e}")
 
 # If we have a prompt, show the button to generate the image via Replicate
 if 'generated_prompt' in st.session_state:
