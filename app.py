@@ -15,7 +15,7 @@ uploaded_file = st.file_uploader("Upload Media (MP4, MOV, JPG, PNG)", type=["mp4
 
 if uploaded_file is not None:
     if uploaded_file.type.startswith('image'):
-        st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
+st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
     elif uploaded_file.type.startswith('video'):
         st.video(uploaded_file)
 
@@ -56,6 +56,6 @@ if 'generated_prompt' in st.session_state:
             
             if gen_response.status_code == 200:
                 media_url = gen_response.json().get("media_url")
-                st.image(media_url, caption="AI Recreation", use_column_width=True)
+                st.image(media_url, caption="AI Recreation", use_container_width=True)
             else:
                 st.error("Failed to generate media. Did you add your REPLICATE_API_TOKEN to Render?")
