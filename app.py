@@ -1,3 +1,5 @@
+import os
+import mimetypes
 import streamlit as st  # type: ignore[import-not-found]
 import json as json_lib
 from abc import ABC, abstractmethod
@@ -94,50 +96,78 @@ class requests(AbstractRequestClient):
 
 
 # Your live FastAPI backend URL
-API_URL = "https://reverse-imagry2prompt.onrender.com/api/v1/reverse-prompt"
-GENERATE_URL = "https://reverse-imagry2prompt.onrender.com/api/v1/generate"
+API_URL = os.getenv("API_URL", "https://reverse-imagry2prompt.onrender.com/api/v1/reverse-prompt")
+GENERATE_URL = os.getenv("GENERATE_URL", "https://reverse-imagry2prompt.onrender.com/api/v1/generate")
+
+
+def get_uploaded_media_type(uploaded_file):
+    media_type = (getattr(uploaded_file, "type", "") or "").lower()
+    if media_type:
+        return media_type
+
+    file_name = getattr(uploaded_file, "name", "") or ""
+    guessed_type, _ = mimetypes.guess_type(file_name)
+    return (guessed_type or "").lower()
+
 
 st.set_page_config(page_title="Reverse Prompt Engineer", page_icon="🎥", layout="centered")
 
 st.title("🎥 AI Reverse Prompt Engineer")
 st.write("Upload a video or image, and the AI will deconstruct it into an optimized generation prompt.")
 
-uploaded_file = st.file_uploader("Upload Media (MP4, MOV, JPG, PNG)", type=["mp4", "mov", "jpg", "png"])
+uploaded_file = st.file_uploader("Upload Media (MP4, MOV, JPG, PNG, JPEG)", type=["mp4", "mov", "jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    if uploaded_file.type.startswith('image'):
+    media_type = get_uploaded_media_type(uploaded_file)
+    if media_type.startswith("image/"):
         st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
-    elif uploaded_file.type.startswith('video'):
+    elif media_type.startswith("video/"):
         st.video(uploaded_file)
+    else:
+        st.warning("Unsupported media type. Please upload an image or video file.")
 
     if st.button("Generate Prompt", type="primary"):
         try:
-            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-            response = requests.post(API_URL, files=files, timeout=120)
-            
-            if response.status_code == 200:
-                response_json = response.json()
-                data = json.loads(response_json["data"])
-                
-                st.success("Analysis Complete!")
-                st.subheader("✨ Optimized Generation Prompt")
-                st.info(data["final_prompt"])
-                
-                st.subheader("🔍 Detailed Breakdown")
-                st.write(f"**Medium:** {data['medium_type']}")
-                st.write(f"**Subject:** {data['core_subject']}")
-                st.write(f"**Environment:** {data['environment']}")
-                st.write(f"**Camera & Motion:** {data['camera_and_motion']}")
-                st.write(f"**Style:** {data['stylistic_modifiers']}")
-                
-                # Store the prompt in session state so we can generate an image from it
-                st.session_state['generated_prompt'] = data["final_prompt"]
+            file_bytes = uploaded_file.getvalue()
+            if not file_bytes:
+                st.warning("Uploaded file is empty. Please choose a valid image or video.")
             else:
-                error_detail = response.text.strip()
-                st.error(
-                    f"API Error: {response.status_code}"
-                    + (f" - {error_detail}" if error_detail else "")
-                )
+                files = {
+                    "file": (
+                        uploaded_file.name or "upload",
+                        file_bytes,
+                        media_type or "application/octet-stream",
+                    )
+                }
+                response = requests.post(API_URL, files=files, timeout=120)
+
+                if response.status_code == 200:
+                    response_json = response.json()
+                    data = response_json.get("data")
+                    if not isinstance(data, str):
+                        st.error("Unexpected response format from the API.")
+                    else:
+                        parsed_data = json.loads(data)
+
+                        st.success("Analysis Complete!")
+                        st.subheader("✨ Optimized Generation Prompt")
+                        st.info(parsed_data["final_prompt"])
+
+                        st.subheader("🔍 Detailed Breakdown")
+                        st.write(f"**Medium:** {parsed_data['medium_type']}")
+                        st.write(f"**Subject:** {parsed_data['core_subject']}")
+                        st.write(f"**Environment:** {parsed_data['environment']}")
+                        st.write(f"**Camera & Motion:** {parsed_data['camera_and_motion']}")
+                        st.write(f"**Style:** {parsed_data['stylistic_modifiers']}")
+
+                        # Store the prompt in session state so we can generate an image from it
+                        st.session_state['generated_prompt'] = parsed_data["final_prompt"]
+                else:
+                    error_detail = response.text.strip()
+                    st.error(
+                        f"API Error: {response.status_code}"
+                        + (f" - {error_detail}" if error_detail else "")
+                    )
         except Exception as e:
             st.error(f"Connection failed: {e}")
 
@@ -146,10 +176,13 @@ if 'generated_prompt' in st.session_state:
     if st.button("🖼️ Generate Image from this Prompt"):
         with st.spinner("Generating new image via FLUX..."):
             gen_payload = {"prompt": st.session_state['generated_prompt']}
-            gen_response = requests.post(GENERATE_URL, json=gen_payload)
-            
+            gen_response = requests.post(GENERATE_URL, json=gen_payload, timeout=120)
+
             if gen_response.status_code == 200:
                 media_url = gen_response.json().get("media_url")
-                st.image(media_url, caption="AI Recreation", use_container_width=True)
+                if media_url:
+                    st.image(media_url, caption="AI Recreation", use_container_width=True)
+                else:
+                    st.error("The generation API did not return a media URL.")
             else:
                 st.error("Failed to generate media. Did you add your REPLICATE_API_TOKEN to Render?")
