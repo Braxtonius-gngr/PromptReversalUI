@@ -144,11 +144,13 @@ if uploaded_file is not None:
                 if response.status_code == 200:
                     response_json = response.json()
                     data = response_json.get("data")
-                    if not isinstance(data, str):
-                        st.error("Unexpected response format from the API.")
-                    else:
+                    if isinstance(data, dict):
+                        parsed_data = data
+                    elif isinstance(data, str):
                         parsed_data = json.loads(data)
-
+                    else:
+                        st.error("Unexpected response format from the API.")
+                    if isinstance(data, (dict, str)):
                         st.success("Analysis Complete!")
                         st.subheader("✨ Optimized Generation Prompt")
                         st.info(parsed_data["final_prompt"])
