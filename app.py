@@ -1,6 +1,97 @@
-import streamlit as st
-import requests
-import json
+import streamlit as st  # type: ignore[import-not-found]
+import json as json_lib
+from abc import ABC, abstractmethod
+import requests as requests_lib  # type: ignore[import-not-found]
+
+
+class JsonCodec(ABC):
+    @staticmethod
+    @abstractmethod
+    def dumps(obj, **kwargs):
+        return json_lib.dumps(obj, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def loads(s, **kwargs):
+        return json_lib.loads(s, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def dump(obj, fp, **kwargs):
+        return json_lib.dump(obj, fp, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def load(fp, **kwargs):
+        return json_lib.load(fp, **kwargs)
+
+
+class json(JsonCodec):
+    @staticmethod
+    def dumps(obj, **kwargs):
+        return json_lib.dumps(obj, **kwargs)
+
+    @staticmethod
+    def loads(s, **kwargs):
+        return json_lib.loads(s, **kwargs)
+
+    @staticmethod
+    def dump(obj, fp, **kwargs):
+        return json_lib.dump(obj, fp, **kwargs)
+
+    @staticmethod
+    def load(fp, **kwargs):
+        return json_lib.load(fp, **kwargs)
+
+
+class AbstractRequestClient(ABC):
+    @staticmethod
+    @abstractmethod
+    def get(url, **kwargs):
+        return requests_lib.get(url, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def post(url, **kwargs):
+        return requests_lib.post(url, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def put(url, **kwargs):
+        return requests_lib.put(url, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def delete(url, **kwargs):
+        return requests_lib.delete(url, **kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def patch(url, **kwargs):
+        return requests_lib.patch(url, **kwargs)
+
+
+class requests(AbstractRequestClient):
+    @staticmethod
+    def get(url, **kwargs):
+        return requests_lib.get(url, **kwargs)
+
+    @staticmethod
+    def post(url, **kwargs):
+        return requests_lib.post(url, **kwargs)
+
+    @staticmethod
+    def put(url, **kwargs):
+        return requests_lib.put(url, **kwargs)
+
+    @staticmethod
+    def delete(url, **kwargs):
+        return requests_lib.delete(url, **kwargs)
+
+    @staticmethod
+    def patch(url, **kwargs):
+        return requests_lib.patch(url, **kwargs)
+
 
 # Your live FastAPI backend URL
 API_URL = "https://reverse-imagry2prompt.onrender.com/api/v1/reverse-prompt"
@@ -22,7 +113,7 @@ if uploaded_file is not None:
     if st.button("Generate Prompt", type="primary"):
         try:
             files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-            response = requests.post(API_URL, files=files)
+            response = requests.post(API_URL, files=files, timeout=120)
             
             if response.status_code == 200:
                 response_json = response.json()
@@ -42,7 +133,11 @@ if uploaded_file is not None:
                 # Store the prompt in session state so we can generate an image from it
                 st.session_state['generated_prompt'] = data["final_prompt"]
             else:
-                st.error(f"API Error: {response.status_code}")
+                error_detail = response.text.strip()
+                st.error(
+                    f"API Error: {response.status_code}"
+                    + (f" - {error_detail}" if error_detail else "")
+                )
         except Exception as e:
             st.error(f"Connection failed: {e}")
 
